@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/downloads/[token]/route": "app/api/downloads/[token]/route.js",
+  "/api/generate-download-token/route": "app/api/generate-download-token/route.js",
+  "/api/purchases/route": "app/api/purchases/route.js",
+  "/api/stripe/create-checkout/route": "app/api/stripe/create-checkout/route.js",
+  "/api/stripe/webhook/route": "app/api/stripe/webhook/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/auth/signin/page": "app/auth/signin/page.js",
+  "/page": "app/page.js"
+}
