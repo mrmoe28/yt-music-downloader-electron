@@ -154,7 +154,7 @@ ipcMain.handle('get-video-info', async (event, url) => {
       '--dump-json',
       '--no-download',
       '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      '--extractor-args', 'youtube:player_client=ios,web',
+      '--extractor-args', 'youtube:player_client=web',
       '--cookies-from-browser', 'chrome',
       '--add-header', 'Accept-Language:en-US,en;q=0.9',
       '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -162,6 +162,8 @@ ipcMain.handle('get-video-info', async (event, url) => {
       '--add-header', 'DNT:1',
       '--add-header', 'Connection:keep-alive',
       '--add-header', 'Upgrade-Insecure-Requests:1',
+      '--no-check-certificates',
+      '--ignore-errors',
       url
     ];
 
@@ -173,7 +175,13 @@ ipcMain.handle('get-video-info', async (event, url) => {
     });
 
     ytdlp.stderr.on('data', (data) => {
-      console.log('yt-dlp info stderr:', data.toString());
+      const errorText = data.toString();
+      console.log('yt-dlp info stderr:', errorText);
+
+      // Don't fail on warnings, only on actual errors
+      if (errorText.includes('ERROR:') && !errorText.includes('WARNING:')) {
+        console.error('yt-dlp error:', errorText);
+      }
     });
 
     ytdlp.on('close', (code) => {
@@ -185,10 +193,12 @@ ipcMain.handle('get-video-info', async (event, url) => {
             thumbnail: info.thumbnail || ''
           });
         } catch (error) {
-          reject('Failed to parse video info');
+          console.error('Failed to parse video info:', error);
+          reject('Failed to parse video info: ' + error.message);
         }
       } else {
-        reject('Failed to get video info');
+        console.error('yt-dlp process exited with code:', code);
+        reject(`Failed to get video info (exit code: ${code})`);
       }
     });
   });
@@ -231,7 +241,7 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
       '--embed-thumbnail',
       '--output', outputTemplate,
       '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      '--extractor-args', 'youtube:player_client=ios,web',
+      '--extractor-args', 'youtube:player_client=web',
       '--cookies-from-browser', 'chrome',
       '--add-header', 'Accept-Language:en-US,en;q=0.9',
       '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -240,11 +250,12 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
       '--add-header', 'Connection:keep-alive',
       '--add-header', 'Upgrade-Insecure-Requests:1',
       '--no-check-certificates',
-      '--concurrent-fragments', '8',
-      '--retries', '3',
-      '--fragment-retries', '3',
-      '--throttled-rate', '100K',
+      '--ignore-errors',
+      '--concurrent-fragments', '4',
+      '--retries', '5',
+      '--fragment-retries', '5',
       '--prefer-free-formats',
+      '--newline',
       ...qualityArgs,
       '--progress',
       url
@@ -254,27 +265,63 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
 
     ytdlp.stdout.on('data', (data) => {
       const output = data.toString();
+      console.log('yt-dlp stdout:', output);
 
-      // Parse progress from yt-dlp output
+      // Parse progress from yt-dlp output - improved parsing
       const progressMatch = output.match(/(\d+\.?\d*)%/);
       if (progressMatch) {
         const progress = parseFloat(progressMatch[1]);
         event.sender.send('download-progress', {
           id: downloadId,
-          status: 'downloading',
+          status: progress >= 100 ? 'converting' : 'downloading',
           progress: progress,
           speed: extractSpeed(output),
           eta: extractETA(output),
           file_path: null
         });
       }
+
+      // Check for conversion/processing messages
+      if (output.includes('[ffmpeg]') || output.includes('Converting')) {
+        event.sender.send('download-progress', {
+          id: downloadId,
+          status: 'converting',
+          progress: 99,
+          speed: null,
+          eta: null,
+          file_path: null
+        });
+      }
     });
 
     ytdlp.stderr.on('data', (data) => {
-      console.log('yt-dlp stderr:', data.toString());
+      const errorText = data.toString();
+      console.log('yt-dlp stderr:', errorText);
+
+      // Send progress updates for warnings but don't fail
+      if (errorText.includes('WARNING:')) {
+        // Just log warnings, don't send error to UI
+        return;
+      }
+
+      // Only handle actual errors
+      if (errorText.includes('ERROR:')) {
+        console.error('yt-dlp download error:', errorText);
+        event.sender.send('download-progress', {
+          id: downloadId,
+          status: 'error',
+          progress: 0,
+          speed: null,
+          eta: null,
+          file_path: null,
+          error: errorText
+        });
+      }
     });
 
     ytdlp.on('close', (code) => {
+      console.log('yt-dlp process closed with code:', code);
+
       if (code === 0) {
         event.sender.send('download-progress', {
           id: downloadId,
@@ -286,15 +333,17 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
         });
         resolve(downloadId);
       } else {
+        console.error('yt-dlp download failed with exit code:', code);
         event.sender.send('download-progress', {
           id: downloadId,
           status: 'error',
           progress: 0,
           speed: null,
           eta: null,
-          file_path: null
+          file_path: null,
+          error: `Download failed with exit code: ${code}`
         });
-        reject('Download failed');
+        reject(`Download failed with exit code: ${code}`);
       }
     });
   });
