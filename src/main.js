@@ -265,7 +265,6 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
 
     ytdlp.stdout.on('data', (data) => {
       const output = data.toString();
-      console.log('yt-dlp stdout:', output);
 
       // Parse progress from yt-dlp output - improved parsing
       const progressMatch = output.match(/(\d+\.?\d*)%/);
@@ -296,7 +295,6 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
 
     ytdlp.stderr.on('data', (data) => {
       const errorText = data.toString();
-      console.log('yt-dlp stderr:', errorText);
 
       // Send progress updates for warnings but don't fail
       if (errorText.includes('WARNING:')) {
@@ -306,7 +304,6 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
 
       // Only handle actual errors
       if (errorText.includes('ERROR:')) {
-        console.error('yt-dlp download error:', errorText);
         event.sender.send('download-progress', {
           id: downloadId,
           status: 'error',
