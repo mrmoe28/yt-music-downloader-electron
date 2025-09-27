@@ -9,8 +9,8 @@ const { autoUpdater } = require('electron-updater');
 // Get the bundled yt-dlp path
 function getYtDlpPath() {
   if (app.isPackaged) {
-    // In packaged app, yt-dlp is in resources/app/binaries/
-    return path.join(process.resourcesPath, 'app', 'binaries', 'yt-dlp');
+    // In packaged app, yt-dlp is in resources/app.asar.unpacked/binaries/
+    return path.join(process.resourcesPath, 'app.asar.unpacked', 'binaries', 'yt-dlp');
   } else {
     // In development, check for bundled binary first, then fall back to system
     const bundledPath = path.join(__dirname, '..', 'binaries', 'yt-dlp');

@@ -29,6 +29,9 @@
       "binaries/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "binaries/**/*"
+    ],
     "mac": {
       "icon": "assets/icon.icns",
       "category": "public.app-category.music",
