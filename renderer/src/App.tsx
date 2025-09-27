@@ -483,7 +483,7 @@ function App() {
         </div>
 
         {/* Download Progress */}
-        {downloadArray.length > 0 && (
+        {downloadArray.filter(d => d.status !== 'completed' && d.status !== 'error').length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -493,7 +493,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {downloadArray.map((download) => (
+                {downloadArray.filter(download => download.status !== 'completed' && download.status !== 'error').map((download) => (
                   <div key={download.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
