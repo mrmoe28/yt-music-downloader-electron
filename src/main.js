@@ -86,6 +86,11 @@ function createWindow() {
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Handle window close event - quit the entire app when window is closed
+  mainWindow.on('closed', () => {
+    app.quit();
+  });
 }
 
 // Configure auto-updater
@@ -160,9 +165,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // Always quit the app when all windows are closed
+  app.quit();
 });
 
 app.on('activate', () => {
@@ -178,8 +182,10 @@ ipcMain.handle('get-video-info', async (event, url) => {
     const args = [
       '--dump-json',
       '--no-download',
-      '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      '--extractor-args', 'youtube:player_client=web',
+      '--extract-audio',
+      '--audio-format', 'mp3',
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '--extractor-args', 'youtube:player_client=mweb',
       '--cookies-from-browser', 'chrome',
       '--add-header', 'Accept-Language:en-US,en;q=0.9',
       '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -201,7 +207,7 @@ ipcMain.handle('get-video-info', async (event, url) => {
 
     ytdlp.stderr.on('data', (data) => {
       const errorText = data.toString();
-      console.log('yt-dlp info stderr:', errorText);
+      console.log('yt-dlp audio info stderr:', errorText);
 
       // Don't fail on warnings, only on actual errors
       if (errorText.includes('ERROR:') && !errorText.includes('WARNING:')) {
@@ -215,15 +221,16 @@ ipcMain.handle('get-video-info', async (event, url) => {
           const info = JSON.parse(output.trim());
           resolve({
             title: info.title || 'Unknown Title',
-            thumbnail: info.thumbnail || ''
+            duration: info.duration || 0,
+            audio_format: info.ext || 'mp3'
           });
         } catch (error) {
-          console.error('Failed to parse video info:', error);
-          reject('Failed to parse video info: ' + error.message);
+          console.error('Failed to parse audio info:', error);
+          reject('Failed to parse audio info: ' + error.message);
         }
       } else {
         console.error('yt-dlp process exited with code:', code);
-        reject(`Failed to get video info (exit code: ${code})`);
+        reject(`Failed to get audio info (exit code: ${code})`);
       }
     });
   });
@@ -231,8 +238,21 @@ ipcMain.handle('get-video-info', async (event, url) => {
 
 ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => {
   const downloadId = uuidv4();
+  console.log('Starting download with ID:', downloadId);
+  console.log('URL:', url);
+  console.log('Output path:', outputPath);
+  console.log('Quality:', quality);
 
   return new Promise((resolve, reject) => {
+    // Add timeout protection
+    const timeout = setTimeout(() => {
+      console.log('Download timeout - terminating process');
+      if (ytdlp && !ytdlp.killed) {
+        ytdlp.kill('SIGTERM');
+      }
+      reject(new Error('Download timeout after 5 minutes'));
+    }, 5 * 60 * 1000); // 5 minute timeout
+
     // Send initial progress
     event.sender.send('download-progress', {
       id: downloadId,
@@ -263,22 +283,18 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
     const args = [
       '--extract-audio',
       '--embed-metadata',
-      '--embed-thumbnail',
       '--output', outputTemplate,
-      '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      '--extractor-args', 'youtube:player_client=web',
+      '--force-ipv4',
+      '--verbose',
+      '--extractor-args', 'youtube:player_client=mweb',
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       '--cookies-from-browser', 'chrome',
-      '--add-header', 'Accept-Language:en-US,en;q=0.9',
-      '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      '--add-header', 'Accept-Encoding:gzip, deflate, br',
-      '--add-header', 'DNT:1',
-      '--add-header', 'Connection:keep-alive',
-      '--add-header', 'Upgrade-Insecure-Requests:1',
       '--no-check-certificates',
       '--ignore-errors',
-      '--concurrent-fragments', '4',
-      '--retries', '5',
-      '--fragment-retries', '5',
+      '--concurrent-fragments', '16',
+      '--retries', '2',
+      '--fragment-retries', '2',
+      '--buffer-size', '16K',
       '--prefer-free-formats',
       '--newline',
       ...qualityArgs,
@@ -286,15 +302,19 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
       url
     ];
 
-    const ytdlp = spawn(getYtDlpPath(), args);
+    console.log('Executing yt-dlp with args:', args);
+    let ytdlp = spawn(getYtDlpPath(), args);
+    console.log('yt-dlp process spawned, PID:', ytdlp.pid);
 
     ytdlp.stdout.on('data', (data) => {
       const output = data.toString();
+      console.log('yt-dlp stdout:', output);
 
-      // Parse progress from yt-dlp output - improved parsing
-      const progressMatch = output.match(/(\d+\.?\d*)%/);
+      // Parse progress from yt-dlp output - more specific matching
+      const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
       if (progressMatch) {
         const progress = parseFloat(progressMatch[1]);
+        console.log('Progress detected:', progress + '%');
         event.sender.send('download-progress', {
           id: downloadId,
           status: progress >= 100 ? 'converting' : 'downloading',
@@ -305,8 +325,22 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
         });
       }
 
+      // Handle "already downloaded" case
+      if (output.includes('[download]') && output.includes('has already been downloaded')) {
+        console.log('File already downloaded, marking as complete');
+        event.sender.send('download-progress', {
+          id: downloadId,
+          status: 'converting',
+          progress: 100,
+          speed: null,
+          eta: null,
+          file_path: null
+        });
+      }
+
       // Check for conversion/processing messages
       if (output.includes('[ffmpeg]') || output.includes('Converting')) {
+        console.log('Conversion detected');
         event.sender.send('download-progress', {
           id: downloadId,
           status: 'converting',
@@ -316,19 +350,35 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
           file_path: null
         });
       }
+
+      // Check for completed download before conversion
+      if (output.includes('[download] 100%')) {
+        console.log('Download completed, starting conversion');
+        event.sender.send('download-progress', {
+          id: downloadId,
+          status: 'converting',
+          progress: 100,
+          speed: null,
+          eta: null,
+          file_path: null
+        });
+      }
     });
 
     ytdlp.stderr.on('data', (data) => {
       const errorText = data.toString();
+      console.log('yt-dlp stderr:', errorText);
 
       // Send progress updates for warnings but don't fail
       if (errorText.includes('WARNING:')) {
+        console.log('Warning received:', errorText);
         // Just log warnings, don't send error to UI
         return;
       }
 
       // Only handle actual errors
       if (errorText.includes('ERROR:')) {
+        console.log('Error received:', errorText);
         event.sender.send('download-progress', {
           id: downloadId,
           status: 'error',
@@ -343,6 +393,7 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
 
     ytdlp.on('close', (code) => {
       console.log('yt-dlp process closed with code:', code);
+      clearTimeout(timeout); // Clear the timeout when process ends
 
       if (code === 0) {
         event.sender.send('download-progress', {
