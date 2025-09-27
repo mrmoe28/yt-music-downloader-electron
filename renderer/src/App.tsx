@@ -149,27 +149,24 @@ function App() {
   };
 
   const handleDownload = async () => {
-    if (!url.trim() || !outputPath || !window.electronAPI) return;
+    if (!url.trim() || !outputPath || !window.electronAPI || isDownloading) return;
 
     setIsDownloading(true);
     try {
       // Get video info first for thumbnail and title
       const videoInfo = await window.electronAPI.getVideoInfo(url.trim());
 
-      // Store video info to be used when download progress starts
-      const tempId = Date.now().toString();
-      const videoMetadata = {
-        title: videoInfo.title,
-        thumbnail: videoInfo.thumbnail,
-        url: url.trim()
-      };
+      const downloadId = await window.electronAPI.downloadAudio({
+        url: url.trim(),
+        outputPath,
+        quality
+      });
 
-      // We'll update the download entry when we receive the first progress event
-      // For now, create a temporary entry
+      // Create single entry with the real download ID and video metadata
       setDownloads(prev => {
         const newMap = new Map(prev);
-        newMap.set(tempId, {
-          id: tempId,
+        newMap.set(downloadId, {
+          id: downloadId,
           status: 'starting',
           progress: 0,
           title: videoInfo.title,
@@ -179,29 +176,12 @@ function App() {
         return newMap;
       });
 
-      const downloadId = await window.electronAPI.downloadAudio({
-        url: url.trim(),
-        outputPath,
-        quality
-      });
-
-      // Update the temporary entry with the actual download ID
-      setDownloads(prev => {
-        const newMap = new Map(prev);
-        // Remove temp entry
-        newMap.delete(tempId);
-        // Add with real ID
-        newMap.set(downloadId, {
-          id: downloadId,
-          status: 'starting',
-          progress: 0,
-          ...videoMetadata
-        });
-        return newMap;
-      });
+      // Clear URL after successful download initiation
+      setUrl('');
     } catch (error) {
       console.error('Download failed:', error);
       alert('Download failed. Please try again.');
+    } finally {
       setIsDownloading(false);
     }
   };
