@@ -41,6 +41,18 @@ npm run dist
 npm run pack
 ```
 
+### macOS Universal Binary Builds
+```bash
+# Universal DMG (recommended for distribution) - works on both Intel and Apple Silicon
+npm run build:mac-universal
+
+# Intel-only build (x64 architecture)
+npm run build:mac-intel
+
+# Apple Silicon-only build (arm64 architecture)
+npm run build:mac-silicon
+```
+
 ### Renderer-Only Development
 ```bash
 # Start React dev server only (for UI work)
@@ -95,8 +107,17 @@ Uses ShadCN UI components located in `renderer/src/components/ui/`:
 
 ### Electron Builder
 - Multi-platform builds: macOS (icns), Windows (ico), Linux (png)
+- Universal macOS binary support for both Intel and Apple Silicon
+- DMG configuration with custom layout and background
 - Output directory: `dist/`
 - Includes: `src/**/*`, `renderer/dist/**/*`, `node_modules/**/*`
+
+### macOS Distribution
+- **DMG Package**: Primary distribution format for macOS
+- **Universal Binary**: Single package works on both Intel and Apple Silicon Macs
+- **Security Warnings**: Users will see Gatekeeper warnings (normal for unsigned apps)
+- **Installation Guide**: See `INSTALLATION-GUIDE.md` for user instructions
+- **Security FAQ**: See `SECURITY-FAQ.md` for security-related questions
 
 ### Vite Configuration
 - React plugin with TypeScript support
