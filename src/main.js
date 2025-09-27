@@ -6,6 +6,22 @@ const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const { autoUpdater } = require('electron-updater');
 
+// Get the bundled yt-dlp path
+function getYtDlpPath() {
+  if (app.isPackaged) {
+    // In packaged app, yt-dlp is in resources/app/binaries/
+    return path.join(process.resourcesPath, 'app', 'binaries', 'yt-dlp');
+  } else {
+    // In development, check for bundled binary first, then fall back to system
+    const bundledPath = path.join(__dirname, '..', 'binaries', 'yt-dlp');
+    if (fs.existsSync(bundledPath)) {
+      return bundledPath;
+    }
+    // Fall back to system yt-dlp in development
+    return 'yt-dlp';
+  }
+}
+
 // Development mode check
 const isDev = false; // Temporarily force production mode to use built files
 
@@ -143,7 +159,7 @@ ipcMain.handle('get-video-info', async (event, url) => {
       url
     ];
 
-    const ytdlp = spawn('yt-dlp', args);
+    const ytdlp = spawn(getYtDlpPath(), args);
     let output = '';
 
     ytdlp.stdout.on('data', (data) => {
@@ -222,7 +238,7 @@ ipcMain.handle('download-audio', async (event, { url, outputPath, quality }) => 
       url
     ];
 
-    const ytdlp = spawn('yt-dlp', args);
+    const ytdlp = spawn(getYtDlpPath(), args);
 
     ytdlp.stdout.on('data', (data) => {
       const output = data.toString();

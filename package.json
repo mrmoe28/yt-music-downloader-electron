@@ -26,6 +26,7 @@
       "src/**/*",
       "renderer/dist/**/*",
       "node_modules/**/*",
+      "binaries/**/*",
       "package.json"
     ],
     "mac": {

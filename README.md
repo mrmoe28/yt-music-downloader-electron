@@ -36,9 +36,10 @@ A professional desktop application for downloading YouTube music with a modern U
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
-- **yt-dlp** - Install via Homebrew: `brew install yt-dlp`
-- **Git**
+- **Node.js** (v18 or higher) - for development only
+- **Git** - for development only
+
+**Note**: End users don't need any dependencies - yt-dlp is bundled with the app!
 
 ### Installation
 

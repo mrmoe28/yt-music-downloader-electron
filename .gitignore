@@ -61,3 +61,6 @@ assets/icon.iconset/
 assets/icon.png
 assets/icon.icns
 assets/icon.ico
+
+# Keep bundled binaries (these are needed for distribution)
+!binaries/yt-dlp
