@@ -49,13 +49,12 @@ function createWindow() {
 
 // Configure auto-updater
 function configureAutoUpdater() {
-  // Configure update server URL (you'll need to set this up)
-  // For GitHub releases:
-  // autoUpdater.setFeedURL({
-  //   provider: 'github',
-  //   owner: 'your-github-username',
-  //   repo: 'yt-music-downloader-electron'
-  // });
+  // Configure update server URL for GitHub releases
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'mrmoe28',
+    repo: 'yt-music-downloader-electron'
+  });
 
   // Check for updates every 30 minutes
   setInterval(() => {
