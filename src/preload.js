@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('download-progress', callback);
   },
 
+  // Settings operations
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+
   // File operations
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   copyToUsb: (options) => ipcRenderer.invoke('copy-to-usb', options),

@@ -6,6 +6,31 @@ const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const { autoUpdater } = require('electron-updater');
 
+// Settings storage
+const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+  }
+  return {
+    outputPath: path.join(os.homedir(), 'Downloads'),
+    quality: '320'
+  };
+}
+
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+  }
+}
+
 // Get the bundled yt-dlp path
 function getYtDlpPath() {
   if (app.isPackaged) {
@@ -431,19 +456,35 @@ ipcMain.handle('get-usb-drives', async () => {
   return drives;
 });
 
+// Settings operations
+ipcMain.handle('get-settings', async () => {
+  return loadSettings();
+});
+
+ipcMain.handle('save-settings', async (event, settings) => {
+  saveSettings(settings);
+  return true;
+});
+
 // File operations
 ipcMain.handle('select-folder', async () => {
+  const currentSettings = loadSettings();
+
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
-    title: 'Select Download Folder'
+    title: 'Select Download Folder',
+    defaultPath: currentSettings.outputPath
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
+    // Save the selected folder to settings
+    const updatedSettings = { ...currentSettings, outputPath: result.filePaths[0] };
+    saveSettings(updatedSettings);
     return result.filePaths[0];
   }
 
-  // Return default download folder if cancelled
-  return path.join(os.homedir(), 'Downloads');
+  // Return current saved folder if cancelled
+  return currentSettings.outputPath;
 });
 
 ipcMain.handle('copy-to-usb', async (event, { sourcePath, usbPath }) => {

@@ -47,12 +47,19 @@ interface SubscriptionStatus {
   downloads_limit?: number;
 }
 
+interface AppSettings {
+  outputPath: string;
+  quality: string;
+}
+
 // Declare global window interface for Electron API
 declare global {
   interface Window {
     electronAPI: {
       downloadAudio: (options: { url: string; outputPath: string; quality: string }) => Promise<string>;
       onDownloadProgress: (callback: (event: unknown, data: DownloadProgress) => void) => () => void;
+      getSettings: () => Promise<AppSettings>;
+      saveSettings: (settings: AppSettings) => Promise<boolean>;
       selectFolder: () => Promise<string>;
       copyToUsb: (options: { sourcePath: string; usbPath: string }) => Promise<boolean>;
       getUsbDrives: () => Promise<USBDrive[]>;
@@ -110,7 +117,8 @@ function App() {
       });
     }
 
-    // Load USB drives and subscription status on mount
+    // Load settings, USB drives and subscription status on mount
+    loadSettings();
     loadUSBDrives();
     checkSubscription();
 
@@ -125,6 +133,19 @@ function App() {
     setIsDark(!isDark);
     document.documentElement.classList.toggle('dark');
   };
+
+  const loadSettings = async () => {
+    if (window.electronAPI) {
+      try {
+        const settings = await window.electronAPI.getSettings();
+        setOutputPath(settings.outputPath);
+        setQuality(settings.quality);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    }
+  };
+
 
   const loadUSBDrives = async () => {
     if (window.electronAPI) {
@@ -149,16 +170,24 @@ function App() {
   };
 
   const handleDownload = async () => {
-    if (!url.trim() || !outputPath || !window.electronAPI || isDownloading) return;
+    if (!url.trim() || !window.electronAPI || isDownloading) return;
 
     setIsDownloading(true);
     try {
+      // Ensure we have settings loaded, use defaults if not
+      let downloadPath = outputPath;
+      if (!downloadPath) {
+        const settings = await window.electronAPI.getSettings();
+        downloadPath = settings.outputPath;
+        setOutputPath(downloadPath);
+      }
+
       // Get video info first for thumbnail and title
       const videoInfo = await window.electronAPI.getVideoInfo(url.trim());
 
       const downloadId = await window.electronAPI.downloadAudio({
         url: url.trim(),
-        outputPath,
+        outputPath: downloadPath,
         quality
       });
 
@@ -192,8 +221,21 @@ function App() {
     try {
       const folder = await window.electronAPI.selectFolder();
       setOutputPath(folder);
+      // Settings are automatically saved by the backend when folder is selected
     } catch (error) {
       console.error('Failed to select folder:', error);
+    }
+  };
+
+  const handleQualityChange = async (newQuality: string) => {
+    setQuality(newQuality);
+    // Auto-save settings when quality changes
+    if (window.electronAPI && outputPath) {
+      try {
+        await window.electronAPI.saveSettings({ outputPath, quality: newQuality });
+      } catch (error) {
+        console.error('Failed to save quality setting:', error);
+      }
     }
   };
 
@@ -317,11 +359,11 @@ function App() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="flex-1"
-                onKeyPress={(e) => e.key === 'Enter' && !isDownloading && url.trim() && outputPath && handleDownload()}
+                onKeyPress={(e) => e.key === 'Enter' && !isDownloading && url.trim() && handleDownload()}
               />
               <Button
                 onClick={handleDownload}
-                disabled={!!(isDownloading || !url.trim() || !outputPath || (url && !url.includes('youtube.com') && !url.includes('youtu.be')))}
+                disabled={!!(isDownloading || !url.trim() || (url && !url.includes('youtube.com') && !url.includes('youtu.be')))}
                 className="px-6"
               >
                 {isDownloading ? (
@@ -358,7 +400,7 @@ function App() {
                 <label className="block text-sm font-medium mb-2">Audio Quality</label>
                 <select
                   value={quality}
-                  onChange={(e) => setQuality(e.target.value)}
+                  onChange={(e) => handleQualityChange(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background"
                 >
                   <option value="320">320 kbps MP3 (High Quality)</option>
@@ -368,18 +410,29 @@ function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Output Folder</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">Download Location</label>
+                  {outputPath && (
+                    <span className="text-xs text-green-500 font-medium">✓ Saved</span>
+                  )}
+                </div>
                 <div className="flex space-x-2">
                   <Input
                     readOnly
-                    value={outputPath || 'No folder selected'}
+                    value={outputPath ? `${outputPath.split('/').pop()}` : 'Downloads (default)'}
                     className="flex-1"
+                    title={outputPath || 'Default Downloads folder'}
                   />
                   <Button variant="outline" onClick={handleSelectFolder}>
                     <FolderOpen className="w-4 h-4 mr-2" />
-                    Browse
+                    {outputPath ? 'Change' : 'Choose'}
                   </Button>
                 </div>
+                {outputPath && (
+                  <p className="text-xs text-muted-foreground mt-1 truncate" title={outputPath}>
+                    {outputPath}
+                  </p>
+                )}
               </div>
 
             </CardContent>
