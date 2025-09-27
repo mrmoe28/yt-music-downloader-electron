@@ -4,7 +4,6 @@ import {
   Music,
   Settings,
   FolderOpen,
-  Usb,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -33,12 +32,6 @@ interface DownloadProgress {
   url?: string;
 }
 
-interface USBDrive {
-  name: string;
-  path: string;
-  capacity: number;
-  available: number;
-}
 
 interface SubscriptionStatus {
   active: boolean;
@@ -61,8 +54,6 @@ declare global {
       getSettings: () => Promise<AppSettings>;
       saveSettings: (settings: AppSettings) => Promise<boolean>;
       selectFolder: () => Promise<string>;
-      copyToUsb: (options: { sourcePath: string; usbPath: string }) => Promise<boolean>;
-      getUsbDrives: () => Promise<USBDrive[]>;
       verifySubscription: (token: string) => Promise<SubscriptionStatus>;
       getVideoInfo: (url: string) => Promise<{ title: string; thumbnail: string }>;
       platform: string;
@@ -74,8 +65,6 @@ declare global {
 function App() {
   const [url, setUrl] = useState('');
   const [downloads, setDownloads] = useState<Map<string, DownloadProgress>>(new Map());
-  const [usbDrives, setUSBDrives] = useState<USBDrive[]>([]);
-  const [selectedUSB, setSelectedUSB] = useState<string>('');
   const [outputPath, setOutputPath] = useState<string>('');
   const [quality, setQuality] = useState('320');
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
@@ -117,9 +106,8 @@ function App() {
       });
     }
 
-    // Load settings, USB drives and subscription status on mount
+    // Load settings and subscription status on mount
     loadSettings();
-    loadUSBDrives();
     checkSubscription();
 
     return () => {
@@ -147,16 +135,6 @@ function App() {
   };
 
 
-  const loadUSBDrives = async () => {
-    if (window.electronAPI) {
-      try {
-        const drives = await window.electronAPI.getUsbDrives();
-        setUSBDrives(drives);
-      } catch (error) {
-        console.error('Failed to load USB drives:', error);
-      }
-    }
-  };
 
   const checkSubscription = async () => {
     if (window.electronAPI) {
@@ -386,16 +364,16 @@ function App() {
         </Card>
 
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Download Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Settings className="w-5 h-5" />
-                <span>Download Settings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* Download Settings */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Settings className="w-5 h-5" />
+              <span>Download Settings</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Audio Quality</label>
                 <select
@@ -434,53 +412,9 @@ function App() {
                   </p>
                 )}
               </div>
-
-            </CardContent>
-          </Card>
-
-          {/* USB Drives */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Usb className="w-5 h-5" />
-                <span>USB Drives ({usbDrives.length} found)</span>
-              </CardTitle>
-              <CardDescription>
-                Transfer downloaded files to external storage
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {usbDrives.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No USB drives detected</p>
-                ) : (
-                  usbDrives.map((drive, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Usb className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{drive.name}</p>
-                          <p className="text-xs text-muted-foreground">{drive.path}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedUSB(drive.path)}
-                        className={selectedUSB === drive.path ? "bg-primary text-primary-foreground" : ""}
-                      >
-                        {selectedUSB === drive.path ? "Selected" : "Select"}
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Download Progress */}
         {downloadArray.filter(d => d.status !== 'completed' && d.status !== 'error').length > 0 && (

@@ -19,10 +19,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File operations
   selectFolder: () => ipcRenderer.invoke('select-folder'),
-  copyToUsb: (options) => ipcRenderer.invoke('copy-to-usb', options),
-
-  // USB drive detection
-  getUsbDrives: () => ipcRenderer.invoke('get-usb-drives'),
 
   // Subscription
   verifySubscription: (token) => ipcRenderer.invoke('verify-subscription', token),

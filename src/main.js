@@ -382,79 +382,6 @@ function extractETA(output) {
   return etaMatch ? etaMatch[1] : null;
 }
 
-// USB drive detection
-ipcMain.handle('get-usb-drives', async () => {
-  const drives = [];
-
-  try {
-    if (process.platform === 'darwin') {
-      // macOS - check /Volumes
-      const volumes = fs.readdirSync('/Volumes');
-      for (const volume of volumes) {
-        const volumePath = `/Volumes/${volume}`;
-        try {
-          const stats = fs.statSync(volumePath);
-          if (stats.isDirectory() && volume !== 'Macintosh HD') {
-            drives.push({
-              name: volume,
-              path: volumePath,
-              capacity: 0, // Could be enhanced with actual size detection
-              available: 0
-            });
-          }
-        } catch (error) {
-          // Skip inaccessible volumes
-        }
-      }
-    } else if (process.platform === 'win32') {
-      // Windows - check removable drives
-      const { execSync } = require('child_process');
-      try {
-        const output = execSync('wmic logicaldisk get deviceid,description,size,freespace /format:csv', { encoding: 'utf8' });
-        const lines = output.split('\n').filter(line => line.includes('Removable Disk'));
-        for (const line of lines) {
-          const parts = line.split(',');
-          if (parts.length >= 4) {
-            drives.push({
-              name: `USB Drive (${parts[1]})`,
-              path: parts[1],
-              capacity: parseInt(parts[3]) || 0,
-              available: parseInt(parts[2]) || 0
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to detect USB drives on Windows:', error);
-      }
-    } else {
-      // Linux - check mounted USB devices
-      try {
-        const mounts = fs.readFileSync('/proc/mounts', 'utf8');
-        const usbMounts = mounts.split('\n').filter(line =>
-          line.includes('/media/') || line.includes('/mnt/')
-        );
-        for (const mount of usbMounts) {
-          const parts = mount.split(' ');
-          if (parts.length >= 2) {
-            const mountPoint = parts[1];
-            drives.push({
-              name: path.basename(mountPoint),
-              path: mountPoint,
-              capacity: 0,
-              available: 0
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to detect USB drives on Linux:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Failed to detect USB drives:', error);
-  }
-
-  return drives;
-});
 
 // Settings operations
 ipcMain.handle('get-settings', async () => {
@@ -487,25 +414,6 @@ ipcMain.handle('select-folder', async () => {
   return currentSettings.outputPath;
 });
 
-ipcMain.handle('copy-to-usb', async (event, { sourcePath, usbPath }) => {
-  return new Promise((resolve, reject) => {
-    const fileName = path.basename(sourcePath);
-    const destinationPath = path.join(usbPath, fileName);
-
-    const readStream = fs.createReadStream(sourcePath);
-    const writeStream = fs.createWriteStream(destinationPath);
-
-    readStream.pipe(writeStream);
-
-    writeStream.on('finish', () => {
-      resolve(true);
-    });
-
-    writeStream.on('error', (error) => {
-      reject(`Failed to copy file: ${error.message}`);
-    });
-  });
-});
 
 // Subscription verification (placeholder - integrate with your existing API)
 ipcMain.handle('verify-subscription', async (event, token) => {
