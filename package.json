@@ -35,34 +35,36 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "minimumSystemVersion": "10.15.0",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "dmg": {
-        "title": "YouTube Music Downloader Pro",
-        "iconSize": 80,
-        "window": {
-          "width": 540,
-          "height": 380
+      "identity": null
+    },
+    "dmg": {
+      "title": "YouTube Music Downloader Pro",
+      "iconSize": 80,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
         },
-        "contents": [
-          {
-            "x": 130,
-            "y": 220,
-            "type": "file"
-          },
-          {
-            "x": 410,
-            "y": 220,
-            "type": "link",
-            "path": "/Applications"
-          }
-        ],
-        "background": "assets/dmg-background.png"
-      }
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "win": {
       "icon": "assets/icon.ico",
@@ -92,7 +94,7 @@
   "devDependencies": {
     "concurrently": "^9.0.1",
     "electron": "^33.4.11",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.0.12",
     "wait-on": "^8.0.1"
   },
   "dependencies": {
