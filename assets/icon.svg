@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg)" stroke="#ffffff" stroke-width="8"/>
+
+  <!-- Music note -->
+  <path d="M320 140c0-22 18-40 40-40s40 18 40 40v180c0 33-27 60-60 60s-60-27-60-60 27-60 60-60c11 0 21 3 30 8V140z" fill="white"/>
+  <path d="M160 200c0-22 18-40 40-40s40 18 40 40v120c0 33-27 60-60 60s-60-27-60-60 27-60 60-60c11 0 21 3 30 8V200z" fill="white"/>
+  <rect x="240" y="140" width="8" height="140" fill="white" rx="4"/>
+
+  <!-- Download arrow -->
+  <path d="M200 300 L220 280 L215 280 L215 260 L205 260 L205 280 L200 280 Z" fill="white"/>
+  <path d="M320 300 L340 280 L335 280 L335 260 L325 260 L325 280 L320 280 Z" fill="white"/>
+</svg>
