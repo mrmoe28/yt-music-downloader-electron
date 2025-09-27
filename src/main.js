@@ -23,7 +23,7 @@ function getYtDlpPath() {
 }
 
 // Development mode check
-const isDev = false; // Temporarily force production mode to use built files
+const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
 
